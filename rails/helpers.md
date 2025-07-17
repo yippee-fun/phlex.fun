@@ -43,7 +43,11 @@ class Components::Base < Phlex::HTML
   register_value_helper :format_release_date
 
   # Register a Rails helper that returns safe HTML to be pushed to the output buffer.
-  register_output_helper :pagy_nav
+  register_output_helper :paginate
+
+  # If the helper returns HTML as a raw string, `:mark_safe` must be used to brand the output
+  # as safe before it is pushed to the output buffer.
+  register_output_helper :pagy_nav, mark_safe: true
 end
 ```
 
