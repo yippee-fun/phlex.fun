@@ -32,6 +32,17 @@ All the other adapters are available as modules under the `Phlex::Rails::Helpers
 If you try to use a Rails helper that you haven’t included, you’ll get a `NoMethodError`. If you read the message carefully, it should tell you exactly which adapter module you need to include.
 :::
 
+::: tip
+Some form helpers yield a builder object to their block. Phlex wraps this in a `Phlex::Rails::Builder` to capture output and push it to the buffer. If you're passing this builder to a component that defines props with Literal, the type definition must also be wrapped. For example:
+
+```ruby
+class Components::FormGroup < Components::Base
+  extend Literal::Properties
+  prop :form, Phlex::Rails::Builder(ActionView::Helpers::FormBuilder)
+end
+```
+:::
+
 ## Registering custom helper adapters
 
 Sometimes you need to register an adapter for your own view helpers, or those provided by Ruby Gems. To do this, you can use the class methods `register_value_helper` and `register_output_helper`.
