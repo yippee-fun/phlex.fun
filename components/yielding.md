@@ -118,6 +118,8 @@ class Nav < Phlex::HTML
 end
 ```
 
+This is analogous to _multiple slots_, a feature found in other frameworks like [Vue](https://vuejs.org/guide/components/slots#named-slots) or [ViewComponent](https://viewcomponent.org/guide/slots.html).
+
 ## Vanishing the yield
 
 In the previous example, we were able yield an interface which the parent component used to compose a nav. Within the block, each time we called `item` or `divider`, the HTML defined in that method was immediately pushed to the buffer.
