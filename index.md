@@ -16,7 +16,7 @@ hero:
       link: /introduction
     - theme: alt
       text: GitHub Repo
-      link: https://github.com/phlex-ruby/phlex
+      link: https://github.com/yippee-fun/phlex
 
 features:
   - title: Pure, beautiful Ruby
