@@ -16,6 +16,6 @@ raw safe(
 
 In Rails, `ActiveSupport::SafeBuffer` objects are also considered safe.
 
-You should avoid using `raw`. If you have to use it, you should avoid using `safe`. Most Rails gems that provide HTML will already mark it as safe if it is safe.
+You should avoid using `raw`. If you have to use it, you should avoid using `safe`. Most Rails gems that provide HTML will already mark it as safe if it is safe. In any case, `phlex-rails` provides a method to register helpers so that using `raw` and `safe` directly is not necessary. See [Registering custom helper adapters](../rails/helpers#registering-custom-helper-adapters).
 
 When you mark a string as `safe`, you are responsible for ensuring there is no unsafe HTML user content in that string. Phlex `raw` method completely bypasses its HTML safety features when given a safe string.
