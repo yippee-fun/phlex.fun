@@ -21,7 +21,7 @@ title: SVG elements DSL in Phlex
 > If you need to embed raw SVG markup directly, you can also use:
 >
 > ```ruby
-> raw("<path d='M12 2L2 22h20L12 2z'>".html_safe)
+> raw safe("<path d='M12 2L2 22h20L12 2z'>")
 > ```
 
 ---
