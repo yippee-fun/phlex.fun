@@ -16,7 +16,7 @@ export default defineConfig({
 		},
 
 		editLink: {
-			pattern: "https://github.com/phlex-ruby/phlex.fun/edit/main/:path",
+			pattern: "https://github.com/yippee-fun/phlex.fun/edit/main/:path",
 		},
 
 		nav: [
@@ -32,7 +32,7 @@ export default defineConfig({
 				collapsed: false,
 				items: [
 					{ text: "Community", link: "/project/community" },
-					{ text: "GitHub", link: "https://github.com/phlex-ruby" },
+					{ text: "GitHub", link: "https://github.com/yippee-fun/phlex" },
 				],
 			},
 
@@ -114,12 +114,12 @@ export default defineConfig({
 			},
 		],
 
-		socialLinks: [{ icon: "github", link: "https://github.com/phlex-ruby" }],
+		socialLinks: [{ icon: "github", link: "https://github.com/yippee-fun/phlex" }],
 
 		footer: {
 			message: "Released under the MIT License.",
 			copyright:
-				'Made by <a href="https://joel.drapper.me">Joel Drapper</a>, <a href="https://github.com/willcosgrove">Will Cosgrove</a> and dozens of other <a href="https://github.com/phlex-ruby/phlex/graphs/contributors">contributors</a>.',
+				'Made by <a href="https://joel.drapper.me">Joel Drapper</a>, <a href="https://github.com/willcosgrove">Will Cosgrove</a> and dozens of other <a href="https://github.com/yippee-fun/phlex/graphs/contributors">contributors</a>.',
 		},
 	},
 });

@@ -127,4 +127,4 @@ For example, here ERB doesn’t know that `@user.bio_link` is being rendered in 
 
 ## Reporting security vulnerabilities
 
-If you believe you have found a security vulnerability in Phlex, please do not open an issue or pull request. Instead, please [send us a private advisory](https://github.com/phlex-ruby/phlex/security/advisories/new) via GitHub.
+If you believe you have found a security vulnerability in Phlex, please do not open an issue or pull request. Instead, please [send us a private advisory](https://github.com/yippee-fun/phlex/security/advisories/new) via GitHub.
