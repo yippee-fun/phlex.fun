@@ -6,13 +6,13 @@ next: false
 
 ## Support 👋
 
-- [GitHub discussions](https://github.com/orgs/phlex-ruby/discussions) — this is the best place to get help with specific issues.
+- [GitHub discussions](https://github.com/yippee-fun/phlex/discussions) — this is the best place to get help with specific issues.
 
 ## GitHub repositories 📦
 
-- [Phlex](https://github.com/phlex-ruby/phlex) - The main repository for Phlex
-- [Phlex Rails](https://github.com/phlex-ruby/phlex-rails) - The Rails engine for Phlex
-- [Phlex.fun](https://github.com/phlex-ruby/phlex.fun) - This website
+- [Phlex](https://github.com/yippee-fun/phlex) - The main repository for Phlex
+- [Phlex Rails](https://github.com/yippee-fun/phlex-rails) - The Rails engine for Phlex
+- [Phlex.fun](https://github.com/yippee-fun/phlex.fun) - This website
 
 ## Who’s using Phlex?
 
