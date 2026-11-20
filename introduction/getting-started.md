@@ -9,7 +9,7 @@ Let’s get Phlex up and running in your app.
 Phlex is a standalone Ruby library with zero dependencies, but most folks will want to use it with [Ruby on Rails](https://rubyonrails.org) so let’s start there.
 
 ::: tip
-It’s possible to use Phlex with [Sinatra](https://sinatrarb.com), [Roda](http://roda.jeremyevans.net), [Hanami](https://hanamirb.org) or any other Ruby framework, but you’ll need to kick off the rendering yourself.
+It’s possible to use Phlex with [Sinatra](https://sinatrarb.com), [Roda](http://roda.jeremyevans.net), or any other Ruby framework, but you’ll need to kick off the rendering yourself.
 :::
 
 ## Installing Phlex in a Rails app
@@ -38,3 +38,15 @@ There are a couple of ways you can fix this:
 2. alternatively, you could move your ViewComponent components to a different directory such as `app/view_components` and autoload that directory in the root namespace.
 
 It’s important for Phlex components to live in a module because of how Kits work, and we recommend the `Components` module under `app/components`.
+
+## Installing Phlex in a Hanami app
+
+To install Phlex in a [Hanami](https://hanakai.org/hanami) app, you'll need to add the `phlex-hanami` gem to your `Gemfile`. The `phlex-hanami` gem includes the `phlex` gem as a dependency, so you won't need to add that separately.
+
+Start by running:
+
+```
+bundle add phlex-hanami
+```
+
+This will install the latest version of `phlex` and `phlex-hanami` and add `phlex-hanami` to your `Gemfile`. For more information on how to use `phlex-hanami` checkout out the [usage docs](https://github.com/aaronmallen/phlex-hanami/tree/main/docs/usage).
