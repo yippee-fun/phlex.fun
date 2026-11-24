@@ -4,6 +4,28 @@ title: SVG elements DSL in Phlex
 
 # SVG elements
 
+> **Note:**  
+> You can call these SVG methods (like `path()`, `circle()`, etc.) inside a class that extends `Phlex::HTML` (or `Phlexicons`).  
+> For example:
+>
+> ```ruby
+> class MyIcon < PhlexIcons
+>   def template
+>     svg(xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24") do
+>       path(d: "M12 2L2 22h20L12 2z")
+>     end
+>   end
+> end
+> ```
+>
+> If you need to embed raw SVG markup directly, you can also use:
+>
+> ```ruby
+> raw safe("<path d='M12 2L2 22h20L12 2z'>")
+> ```
+
+---
+
 ## `a`
 
 Renders an [`<a>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/a) element.
