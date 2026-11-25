@@ -84,6 +84,8 @@ The generator creates two modules: `Views`, for classes in `app/views`, and `Com
 
 That’s it. You’re ready to [build your first page](/introduction/tutorial).
 
+<a id="already-using-viewcomponent"></a>
+
 ::: details Already using ViewComponent?
 Loading `app/components` as the `Components` module may cause issues if you already have ViewComponent components in that folder.
 

@@ -59,7 +59,7 @@ That means `app/components/sidebar.rb` should define `Components::Sidebar` and `
 `Components` is a [Kit](/components/kits). Any component defined under it can be rendered from another component by calling a method with its name, such as `Sidebar()`.
 
 ::: tip
-If you also use ViewComponent, you’ll already have classes in `app/components` that aren’t in a `Components` namespace. See [Conflicts with the ViewComponent gem](/introduction/getting-started#conflicts-with-the-viewcomponent-gem).
+If you also use ViewComponent, you’ll already have classes in `app/components` that aren’t in a `Components` namespace. See [Already using ViewComponent?](/introduction/getting-started#already-using-viewcomponent) in Getting started.
 :::
 
 ### The base component
