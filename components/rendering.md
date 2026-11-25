@@ -118,6 +118,15 @@ Pass the content block to `render`. A block given to `new` is passed to the comp
 render(Components::Card.new) { h1 { @article.title } }
 ```
 
+To build a component that carries its content, so it can be rendered later without a block, use `with_content`. It takes the same arguments as `new`.
+
+```ruby
+card = Components::Card.with_content { h1 { @article.title } }
+render card
+```
+
+You can also call `with_content` on a component you’ve already built: `Components::Card.new.with_content { … }`. A block given to `render` takes precedence over the stored one.
+
 ## Rendering Phlex components in ERB <Badge type="danger" text="Rails" />
 
 You can also render Phlex components from ERB and other Rails templating languages, such as [Slim](https://slim-template.github.io) and [Haml](https://haml.info). This works from views, partials or even [ViewComponent](https://viewcomponent.org) components.
