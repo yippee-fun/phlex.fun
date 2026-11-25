@@ -1,3 +1,7 @@
+---
+title: Upgrading to Phlex v2
+---
+
 # Upgrading to Phlex v2
 
 While we’ve tried to keep breaking changes to a minimum, there are a few things you will need to be aware of when upgrading from Phlex v1 to v2.
@@ -10,7 +14,7 @@ Phlex v1 used [SemVer](https://semver.org) (semantic versioning). Going forward,
 
 The version scheme is:
 
-```
+```text
 MAJOR . MINOR . NON_BREAKING
 ```
 
@@ -20,9 +24,9 @@ MAJOR . MINOR . NON_BREAKING
 
 We try to avoid breaking changes altogether, but they are sometimes necessary for progress. We’ve come to realize if we’re going to make a breaking change, we should make it _as quickly as possible_. Any delay means more work for users.
 
-## Kits <Badge type="tip" text="new" />
+## Kits
 
-Originally previewed in v1, Kits are now out of beta and fully supported in v2. Kits are a way to package up a set of components into a module, which makes them easier to render.
+Originally previewed in v1, Kits are fully supported in v2. Kits are a way to package up a set of components into a module, which makes them easier to render.
 
 In v2, Kits also extend to modules (but not classes) defined under them.
 
@@ -40,13 +44,13 @@ module Components
 end
 ```
 
-[More details…](/components/kits.html)
+[More details…](/components/kits)
 
-## A better attribute cache <Badge type="tip" text="new" />
+## A better attribute cache
 
-Phlex v2 introduces a new attribute cache that caches more things.
+Phlex v2 has an attribute cache that caches more things than the one in v1.
 
-[More details…](/design/attribute-caching).
+[More details…](/design/attribute-caching)
 
 ## Renamed `template` → `view_template` <Badge type="danger" text="breaking" />
 
@@ -58,11 +62,11 @@ To render [`<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Eleme
 
 ## Made `yield_content` private
 
-You can replace it with `render`, which [now accepts blocks](https://github.com/phlex-ruby/phlex/pull/798).
+You can replace it with `render`, which [now accepts blocks](https://github.com/yippee-fun/phlex/pull/798).
 
 ## Removed `tokens` and `classes` <Badge type="danger" text="breaking" />
 
-There are [better ways to handle conditional tokens now](/sgml/attributes.html#arrays-and-sets), so we removed these helpers. If you need them back to support your existing code, you can just copy the original implementation from below.
+There are [better ways to handle conditional tokens now](/sgml/attributes#arrays-and-sets), so we removed these helpers. If you need them back to support your existing code, you can just copy the original implementation from below.
 
 ::: details Original `classes` and `tokens` implementation
 
@@ -147,15 +151,15 @@ module DeferredRender
 end
 ```
 
-See [Yielding](/components/yielding.html) for an explanation how how this works.
+See [Vanishing the yield](/components/yielding#vanishing-the-yield) for an explanation of how this works.
 
 ## Changed selective rendering <Badge type="danger" text="breaking" />
 
-We’ve redesigned the Selective Rendering feature (introduced in [1.10](https://github.com/phlex-ruby/phlex/releases/tag/1.10.0)) to be more predictable and easier to understand.
+We’ve redesigned the Selective Rendering feature (introduced in [1.10](https://github.com/yippee-fun/phlex/releases/tag/1.10.0)) to be more predictable and easier to understand.
 
 Previously, selective rendering worked by targeting element IDs:
 
-```rb
+```ruby
 # Before (Phlex ~> 1.10)
 def view_template
   section do
@@ -172,7 +176,7 @@ component.call(fragments: ["the-list"])
 
 Now, selective rendering requires explicit fragment declarations:
 
-```rb
+```ruby
 # After (Phlex 2.0)
 def view_template
   section do
@@ -195,23 +199,29 @@ component.call(fragments: ["the-list"])
 2. **Decoupled from DOM**: Fragment names no longer need to match element IDs
 3. **More Predictable**: Eliminates edge cases where ID-based targeting wasn’t supported
 
-### Common Use Case: Turbo Frames
+[More details…](/components/fragments)
 
-For applications using Turbo Frames, you can automatically make all frames selectively renderable by extending the `turbo_frame` method:
+### Common Use Case: Turbo Frames <Badge type="danger" text="Rails" />
 
-```rb
-def turbo_frame(id:, ...)
-  fragment(id) { super }
+For applications using Turbo Frames, you can automatically make all frames selectively renderable by wrapping the `turbo_frame_tag` helper in a fragment. Do this in your base component, where the helper’s adapter is included:
+
+```ruby
+class Components::Base < Phlex::HTML
+  include Phlex::Rails::Helpers::TurboFrameTag
+
+  def turbo_frame_tag(id, ...)
+    fragment(id) { super }
+  end
 end
 ```
 
-This ensures any `<turbo-frame>` element can be selectively rendered using its ID.
+This ensures any `<turbo-frame>` rendered with `turbo_frame_tag("comments") { … }` can be selectively rendered using its ID. In Rails, the fragments to render are taken from the request’s `X-Fragments` header — see [Rendering part of a view](/rails/views#rendering-part-of-a-view).
 
 ## New opinionated Rails generators <Badge type="danger" text="breaking" />
 
 We’ve made some significant changes to the Rails generators, which now assume a specific folder structure and naming convention for views and components.
 
-The `install` generator now create an _initializer_ file in `config/initializers/phlex.rb` where the modules: `Views` and `Components` are defined. It also autoloads the `app/views` and `app/components` directories with the `Views` and `Components` namespaces respectively.
+The `install` generator now creates an _initializer_ file in `config/initializers/phlex.rb` where the modules: `Views` and `Components` are defined. It also autoloads the `app/views` and `app/components` directories with the `Views` and `Components` namespaces respectively.
 
 ::: details `config/initializers/phlex.rb`
 
@@ -226,28 +236,29 @@ module Components
 end
 
 Rails.autoloaders.main.push_dir(
-  "#{Rails.root}/app/views", namespace: Views
+  Rails.root.join("app/views"), namespace: Views
 )
 
 Rails.autoloaders.main.push_dir(
-  "#{Rails.root}/app/components", namespace: Components
+  Rails.root.join("app/components"), namespace: Components
 )
 ```
 
 :::
 
-It also creates a `Base` class for both views and components.
+It also creates a `Base` class for both views and components: `Components::Base` in `app/components/base.rb` and `Views::Base` in `app/views/base.rb`.
 
 The `view` generator now creates views under `app/views`, namespaced under `Views`.
 
-::: details Example view
+::: details `bin/rails generate phlex:view Articles::Index`
 
 ```ruby
 # frozen_string_literal: true
 
 class Views::Articles::Index < Views::Base
   def view_template
-    h1 { "Articles" }
+    h1 { "Articles::Index" }
+    p { "Find me in app/views/articles/index.rb" }
   end
 end
 ```
@@ -256,14 +267,15 @@ end
 
 The `component` generator now creates components under `app/components`, namespaced under `Components`.
 
-::: details Example component
+::: details `bin/rails generate phlex:component Button`
 
 ```ruby
 # frozen_string_literal: true
 
 class Components::Button < Components::Base
   def view_template
-    button { "Click me" }
+    h1 { "Button" }
+    p { "Find me in app/components/button.rb" }
   end
 end
 ```
@@ -273,6 +285,23 @@ end
 You may want to run the new install generator in a fresh Rails app to see how the new folder structure works and assess if you want to adopt it.
 
 The folder structure is entirely optional — you can put Phlex components wherever you like — but guides and generators may assume this structure.
+
+[More details…](/rails/generators)
+
+## Deprecated `helpers` <Badge type="danger" text="Rails" />
+
+The `helpers` method, which returned the Rails view context, is deprecated in `phlex-rails` v2. It still works, but it prints a warning each time it’s called and will be removed in a future minor version.
+
+Use a [helper adapter](/rails/helpers) instead, or [register your own](/rails/helpers#registering-your-own-helpers). If you really need the view context, it’s available as [`view_context`](/rails/views#the-view-context).
+
+```ruby
+def view_template
+  p { helpers.number_to_currency(@price) } # [!code --]
+  p { number_to_currency(@price) } # [!code ++]
+end
+```
+
+The second form needs `include Phlex::Rails::Helpers::NumberToCurrency` in the component.
 
 ## Changed rendering partials from Phlex <Badge type="danger" text="Rails" /><Badge type="danger" text="breaking" />
 
@@ -290,4 +319,4 @@ render partial("foo")
 
 These partial reference objects are also renderable outside of Phlex. You can pass them to ViewComponent components or other Rails partials.
 
-[More details…](/components/rendering.html#rendering-rails-partials-in-phlex)
+[More details…](/components/rendering#rendering-rails-partials-in-phlex)

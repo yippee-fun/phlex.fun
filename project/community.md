@@ -11,7 +11,7 @@ next: false
 ## GitHub repositories 📦
 
 - [Phlex](https://github.com/yippee-fun/phlex) - The main repository for Phlex
-- [Phlex Rails](https://github.com/yippee-fun/phlex-rails) - The Rails engine for Phlex
+- [Phlex Rails](https://github.com/yippee-fun/phlex-rails) - The Rails integration for Phlex
 - [Phlex.fun](https://github.com/yippee-fun/phlex.fun) - This website
 
 ## Who’s using Phlex?
@@ -41,7 +41,7 @@ It’s impossible to know how many people are using Phlex in production, but her
 
 ## Third-party component libraries 📚
 
-- [RubyUI](https://rubyui.com)
+- [RubyUI](https://www.rubyui.com)
 - [ZestUI](https://zestui.com)
 - [Phlex Icons](https://github.com/AliOsm/phlex-icons)
 - [NitroKit](https://nitrokit.dev)

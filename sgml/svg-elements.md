@@ -4,258 +4,387 @@ title: SVG elements DSL in Phlex
 
 # SVG elements
 
-## `a`
+`Phlex::SVG` works like `Phlex::HTML`, but with a method for each SVG element instead of each HTML element. You can use it to write standalone SVG components, such as icons and charts, and you get the same SVG methods inside the [`svg`](/sgml/html-elements#svg) element of an HTML component.
 
-Renders an [`<a>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/a) element.
+## SVG components
 
-## `animate`
+Subclass `Phlex::SVG` and define a `view_template`, just like you would with an HTML component.
 
-Renders an [`<animate>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/animate) element.
+```ruby
+class Circle < Phlex::SVG
+  def initialize(size:)
+    @size = size
+  end
 
-## `animateMotion`
+  def view_template
+    svg(
+      xmlns: "http://www.w3.org/2000/svg",
+      viewBox: "0 0 #{@size} #{@size}",
+      width: @size,
+      height: @size
+    ) do
+      circle(cx: @size / 2, cy: @size / 2, r: @size / 2, fill: "currentColor")
+    end
+  end
+end
 
-Renders an [`<animateMotion>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/animateMotion) element.
+Circle.new(size: 24).call
+```
 
-## `animateTransform`
+```html
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <circle cx="12" cy="12" r="12" fill="currentColor"></circle>
+</svg>
+```
 
-Renders an [`<animateTransform>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/animateTransform) element.
+Everything you know from HTML components carries over: [attributes](/sgml/attributes), [`plain`](/sgml/text), [`whitespace`](/sgml/whitespace), [`comment`](/sgml/comments), [`raw` and `safe`](/sgml/raw), [`tag`, `mix` and the other helpers](/sgml/helpers), and [rendering other components](/components/rendering). An SVG component’s `content_type` is `"image/svg+xml"`.
 
-## `circle`
+You can render an SVG component from an HTML component.
 
-Renders a [`<circle>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/circle) element.
+```ruby
+div { render Circle.new(size: 24) }
+```
 
-## `clipPath`
+### Element and attribute names
 
-Renders a [`<clipPath>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/clipPath) element.
+SVG is case-sensitive, so element methods use the same camel case as the elements: `clipPath`, `linearGradient`, `foreignObject`, `feGaussianBlur` and so on.
 
-## `defs`
+Symbol attribute keys have underscores replaced with dashes, which suits attributes like `stroke_width:`. Camel case attributes such as `viewBox:` and `stdDeviation:` don’t contain underscores, so you can write them as they are.
 
-Renders a [`<defs>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/defs) element.
+```ruby
+clipPath(id: "clip") { rect(width: 10, height: 10) }
+path(d: "M0 0 L10 10", stroke_width: 2)
+feGaussianBlur(stdDeviation: 2)
+```
 
-## `desc`
+```html
+<clipPath id="clip">
+  <rect width="10" height="10"></rect>
+</clipPath>
+<path d="M0 0 L10 10" stroke-width="2"></path>
+<feGaussianBlur stdDeviation="2"></feGaussianBlur>
+```
 
-Renders a [`<desc>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/desc) element.
+All SVG elements are standard elements, so they always render a closing tag.
 
-## `discard`
+## Inline SVG in HTML
 
-Renders a [`<discard>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/discard) element.
+In a `Phlex::HTML` component, the `svg` element yields a `Phlex::SVG` component. Call the SVG element methods on the object that’s yielded.
 
-## `ellipse`
+```ruby
+class Icon < Phlex::HTML
+  def view_template
+    svg(viewBox: "0 0 10 10", class: "icon") do |s|
+      s.circle(cx: 5, cy: 5, r: 4)
+    end
+  end
+end
+```
 
-Renders an [`<ellipse>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/ellipse) element.
+```html
+<svg viewBox="0 0 10 10" class="icon">
+  <circle cx="5" cy="5" r="4"></circle>
+</svg>
+```
 
-## `feBlend`
+Inside the block, `self` is still your HTML component, so calling `circle` without the receiver raises a `NoMethodError`. The yielded SVG component has only SVG elements, so `s.div` raises too. To embed HTML in an SVG, use `foreignObject`.
 
-Renders a [`<feBlend>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feBlend) element.
+If you only need a string of SVG and don’t want to define a component, see [`Phlex.svg`](/sgml/string-builder).
 
-## `feColorMatrix`
+## CDATA sections <Badge type="info" text="2.1+" />
 
-Renders a [`<feColorMatrix>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feColorMatrix) element.
+`cdata` outputs a [CDATA section](https://developer.mozilla.org/en-US/docs/Web/API/CDATASection), which is useful for inline styles and scripts that contain characters like `<` and `&`. Pass it a String.
 
-## `feComponentTransfer`
+```ruby
+style { cdata("a > b { fill: red }") }
+```
 
-Renders a [`<feComponentTransfer>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feComponentTransfer) element.
+```html
+<style><![CDATA[a > b { fill: red }]]></style>
+```
 
-## `feComposite`
+Or pass a block, and whatever the block renders is wrapped in a CDATA section.
 
-Renders a [`<feComposite>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feComposite) element.
+```ruby
+cdata { circle(r: 1) }
+```
 
-## `feConvolveMatrix`
+```html
+<![CDATA[<circle r="1"></circle>]]>
+```
 
-Renders a [`<feConvolveMatrix>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feConvolveMatrix) element.
+If the content contains `]]>`, it’s split across two sections so it can’t end the section early. In Phlex 2.4, the `>` is lost in the split, so `a]]>b` is read back as `a]]b`. `cdata` takes a String or a block, not both. Anything else raises `Phlex::ArgumentError: Expected a String or block.`
 
-## `feDiffuseLighting`
+::: warning
+The content of a CDATA section isn’t escaped, and it’s only a CDATA section inside an `<svg>` element or in an SVG document. Anywhere else in an HTML page, the browser reads it as a comment that ends at the first `>`, and parses the rest of the content as markup. Don’t render a `Phlex::SVG` component that uses `cdata` outside an `<svg>` element.
+:::
 
-Renders a [`<feDiffuseLighting>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feDiffuseLighting) element.
+## What’s different from HTML
 
-## `feDisplacementMap`
+A few things on `Phlex::HTML` aren’t available on `Phlex::SVG`:
 
-Renders a [`<feDisplacementMap>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feDisplacementMap) element.
+- There’s no `register_element`. To render an element Phlex doesn’t know about, use [`tag`](/sgml/helpers#tag) with a name that contains a dash, e.g. `tag(:my_shape)`. In SVG, `tag` won’t render `script` or `style`.
+- There’s no `doctype`.
+- There are no void elements.
 
-## `feDistantLight`
+And `cdata` is only available on `Phlex::SVG`.
 
-Renders a [`<feDistantLight>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feDistantLight) element.
+## Element reference
 
-## `feDropShadow`
+Every element registered in Phlex 2.4.2 is listed here.
 
-Renders a [`<feDropShadow>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feDropShadow) element.
+### `a`
 
-## `feFlood`
+Renders an [`<a>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/a) element.
 
-Renders a [`<feFlood>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feFlood) element.
+### `animate`
 
-## `feFuncA`
+Renders an [`<animate>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/animate) element.
 
-Renders a [`<feFuncA>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feFuncA) element.
+### `animateMotion`
 
-## `feFuncB`
+Renders an [`<animateMotion>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/animateMotion) element.
 
-Renders a [`<feFuncB>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feFuncB) element.
+### `animateTransform`
 
-## `feFuncG`
+Renders an [`<animateTransform>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/animateTransform) element.
 
-Renders a [`<feFuncG>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feFuncG) element.
+### `circle`
 
-## `feFuncR`
+Renders a [`<circle>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/circle) element.
 
-Renders a [`<feFuncR>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feFuncR) element.
+### `clipPath`
 
-## `feGaussianBlur`
+Renders a [`<clipPath>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/clipPath) element.
 
-Renders a [`<feGaussianBlur>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feGaussianBlur) element.
+### `defs`
 
-## `feImage`
+Renders a [`<defs>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/defs) element.
 
-Renders a [`<feImage>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feImage) element.
+### `desc`
 
-## `feMerge`
+Renders a [`<desc>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/desc) element.
 
-Renders a [`<feMerge>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feMerge) element.
+### `discard`
 
-## `feMergeNode`
+Renders a [`<discard>`](https://svgwg.org/specs/animations/#DiscardElement) element.
 
-Renders a [`<feMergeNode>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feMergeNode) element.
+### `ellipse`
 
-## `feMorphology`
+Renders an [`<ellipse>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/ellipse) element.
 
-Renders a [`<feMorphology>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feMorphology) element.
+### `feBlend`
 
-## `feOffset`
+Renders a [`<feBlend>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feBlend) element.
 
-Renders a [`<feOffset>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feOffset) element.
+### `feColorMatrix`
 
-## `fePointLight`
+Renders a [`<feColorMatrix>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feColorMatrix) element.
 
-Renders a [`<fePointLight>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/fePointLight) element.
+### `feComponentTransfer`
 
-## `feSpecularLighting`
+Renders a [`<feComponentTransfer>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feComponentTransfer) element.
 
-Renders a [`<feSpecularLighting>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feSpecularLighting) element.
+### `feComposite`
 
-## `feSpotLight`
+Renders a [`<feComposite>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feComposite) element.
 
-Renders a [`<feSpotLight>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feSpotLight) element.
+### `feConvolveMatrix`
 
-## `feTile`
+Renders a [`<feConvolveMatrix>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feConvolveMatrix) element.
 
-Renders a [`<feTile>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feTile) element.
+### `feDiffuseLighting`
 
-## `feTurbulence`
+Renders a [`<feDiffuseLighting>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feDiffuseLighting) element.
 
-Renders a [`<feTurbulence>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feTurbulence) element.
+### `feDisplacementMap`
 
-## `filter`
+Renders a [`<feDisplacementMap>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feDisplacementMap) element.
 
-Renders a [`<filter>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/filter) element.
+### `feDistantLight`
 
-## `foreignObject`
+Renders a [`<feDistantLight>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feDistantLight) element.
 
-Renders a [`<foreignObject>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/foreignObject) element.
+### `feDropShadow`
 
-## `g`
+Renders a [`<feDropShadow>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feDropShadow) element.
 
-Renders a [`<g>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/g) element.
+### `feFlood`
 
-## `image`
+Renders a [`<feFlood>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feFlood) element.
 
-Renders a [`<image>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/image) element.
+### `feFuncA`
 
-## `line`
+Renders a [`<feFuncA>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feFuncA) element.
 
-Renders a [`<line>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/line) element.
+### `feFuncB`
 
-## `linearGradient`
+Renders a [`<feFuncB>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feFuncB) element.
 
-Renders a [`<linearGradient>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/linearGradient) element.
+### `feFuncG`
 
-## `marker`
+Renders a [`<feFuncG>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feFuncG) element.
 
-Renders a [`<marker>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/marker) element.
+### `feFuncR`
 
-## `mask`
+Renders a [`<feFuncR>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feFuncR) element.
 
-Renders a [`<mask>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/mask) element.
+### `feGaussianBlur`
 
-## `metadata`
+Renders a [`<feGaussianBlur>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feGaussianBlur) element.
 
-Renders a [`<metadata>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/metadata) element.
+### `feImage`
 
-## `mpath`
+Renders a [`<feImage>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feImage) element.
 
-Renders a [`<mpath>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/mpath) element.
+### `feMerge`
 
-## `path`
+Renders a [`<feMerge>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feMerge) element.
 
-Renders a [`<path>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/path) element.
+### `feMergeNode`
 
-## `pattern`
+Renders a [`<feMergeNode>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feMergeNode) element.
 
-Renders a [`<pattern>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/pattern) element.
+### `feMorphology`
 
-## `polygon`
+Renders a [`<feMorphology>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feMorphology) element.
 
-Renders a [`<polygon>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/polygon) element.
+### `feOffset`
 
-## `polyline`
+Renders a [`<feOffset>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feOffset) element.
 
-Renders a [`<polyline>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/polyline) element.
+### `fePointLight`
 
-## `radialGradient`
+Renders a [`<fePointLight>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/fePointLight) element.
 
-Renders a [`<radialGradient>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/radialGradient) element.
+### `feSpecularLighting`
 
-## `rect`
+Renders a [`<feSpecularLighting>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feSpecularLighting) element.
 
-Renders a [`<rect>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/rect) element.
+### `feSpotLight`
 
-## `script`
+Renders a [`<feSpotLight>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feSpotLight) element.
 
-Renders a [`<script>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script) element.
+### `feTile`
 
-## `set`
+Renders a [`<feTile>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feTile) element.
 
-Renders a [`<set>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/set) element.
+### `feTurbulence`
 
-## `stop`
+Renders a [`<feTurbulence>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/feTurbulence) element.
 
-Renders a [`<stop>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/stop) element.
+### `filter`
 
-## `style`
+Renders a [`<filter>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/filter) element.
 
-Renders a [`<style>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/style) element.
+### `foreignObject`
 
-## `svg`
+Renders a [`<foreignObject>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/foreignObject) element.
 
-Renders a [`<svg>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/svg) element.
+### `g`
 
-## `switch`
+Renders a [`<g>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/g) element.
 
-Renders a [`<switch>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/switch) element.
+### `image`
 
-## `symbol`
+Renders a [`<image>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/image) element.
 
-Renders a [`<symbol>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/symbol) element.
+### `line`
 
-## `text`
+Renders a [`<line>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/line) element.
 
-Renders a [`<text>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/text) element.
+### `linearGradient`
 
-## `textPath`
+Renders a [`<linearGradient>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/linearGradient) element.
 
-Renders a [`<textPath>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/textPath) element.
+### `marker`
 
-## `title`
+Renders a [`<marker>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/marker) element.
 
-Renders a [`<title>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/title) element.
+### `mask`
 
-## `tspan`
+Renders a [`<mask>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/mask) element.
 
-Renders a [`<tspan>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/tspan) element.
+### `metadata`
 
-## `use`
+Renders a [`<metadata>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/metadata) element.
 
-Renders a [`<use>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/use) element.
+### `mpath`
 
-## `view`
+Renders a [`<mpath>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/mpath) element.
 
-Renders a [`<view>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/view) element.
+### `path`
+
+Renders a [`<path>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/path) element.
+
+### `pattern`
+
+Renders a [`<pattern>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/pattern) element.
+
+### `polygon`
+
+Renders a [`<polygon>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/polygon) element.
+
+### `polyline`
+
+Renders a [`<polyline>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/polyline) element.
+
+### `radialGradient`
+
+Renders a [`<radialGradient>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/radialGradient) element.
+
+### `rect`
+
+Renders a [`<rect>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/rect) element.
+
+### `script`
+
+Renders a [`<script>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/script) element.
+
+### `set`
+
+Renders a [`<set>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/set) element.
+
+### `stop`
+
+Renders a [`<stop>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/stop) element.
+
+### `style`
+
+Renders a [`<style>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/style) element.
+
+### `svg`
+
+Renders a [`<svg>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/svg) element.
+
+### `switch`
+
+Renders a [`<switch>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/switch) element.
+
+### `symbol`
+
+Renders a [`<symbol>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/symbol) element.
+
+### `text`
+
+Renders a [`<text>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/text) element.
+
+### `textPath`
+
+Renders a [`<textPath>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/textPath) element.
+
+### `title`
+
+Renders a [`<title>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/title) element.
+
+### `tspan`
+
+Renders a [`<tspan>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/tspan) element.
+
+### `use`
+
+Renders a [`<use>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/use) element.
+
+### `view`
+
+Renders a [`<view>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/view) element.

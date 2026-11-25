@@ -4,11 +4,11 @@ title: Testing Phlex components
 
 # Testing
 
-Because Phlex components are just Ruby objects, you can unit-test them like any other Ruby object.
+Because Phlex components are just Ruby objects, you can unit-test them like any other Ruby object. Render a component to a String and make assertions about the result.
 
-There are so many different libraries and tools for testing HTML. Instead of try to cater for every possible combination, we’re going to serve you a buffet of ideas here and let you build your own.
+There are so many different libraries and tools for testing HTML. Instead of trying to cater for every possible combination, we’re going to serve you a buffet of ideas here and let you build your own.
 
-You’ll want to start by defining a module to load your helpers in. You can then include this module in each of your component tests.
+You’ll want to start by defining a module to put your helpers in. You can then include this module in each of your component tests.
 
 ```ruby
 module ComponentTestHelper
@@ -18,11 +18,11 @@ end
 
 ## Basic `render` helper
 
-One basic helper we could define is a `render` method that takes a component and returns the HTML output. We can use the `call` method for this.
+One basic helper we could define is a `render` method that takes a component and returns the HTML output. We can use the [`call`](/components/rendering#rendering-to-a-string) method for this.
 
 ```ruby
-def render(component)
-  component.call
+def render(component, &)
+  component.call(&)
 end
 ```
 
@@ -33,9 +33,31 @@ output = render Components::Hello.new
 assert_equal "<h1>Hello</h1>", output
 ```
 
-#### Working with Rails <Badge type="danger" text="Rails" />
+Create a new instance of the component for each render. A component instance can only be [rendered once](/components/rendering#a-component-renders-once).
 
-If you’re testing a Rails app, you’ll probably want to pass in a `view_context` so that your components can use Rails view helpers. The easiest way to do this is to get the `view_context` from a test controller instance and then use that to render the component.
+### Content blocks
+
+A block given to `call` is the component’s content block. It’s yielded the component, so you can use the component to output HTML or to call the methods of a [yielded interface](/components/yielding#yielding-an-interface).
+
+```ruby
+output = render Components::Card.new("Hello") do |card|
+  card.p { "Content" }
+end
+```
+
+In the block, `self` is your test, not a component. That’s why we call `card.p` rather than `p`. For anything more involved, define a small component in your test that renders the one you’re testing.
+
+### Context
+
+If the component reads from [context](/components/context), pass one to `call`.
+
+```ruby
+output = Components::UserBadge.new.call(context: { current_user: "Ada" })
+```
+
+### Working with Rails <Badge type="danger" text="Rails" />
+
+If you’re testing a Rails app, you’ll probably want your components to be rendered with a view context so that they can use Rails view helpers. The easiest way to do this is to get the `view_context` from a test controller instance and then use that to render the component.
 
 ```ruby
 def render(...)
@@ -51,9 +73,9 @@ def controller
 end
 ```
 
-- `render` here delegates to the `render` method on the `view_context`, which is going to use Rails own rendering logic.
-- `view_context` is just delegating to `controller`
-- `controller` memoizes an `ActionView::TestCase::TestController`
+- `render` here delegates to the `render` method on the `view_context`, which uses Rails’ own rendering logic.
+- `view_context` delegates to `controller`.
+- `controller` memoizes an `ActionView::TestCase::TestController`.
 
 The neat thing about this helper is you can use this same method to render Phlex components and ViewComponent components as well as ERB views and partials.
 
@@ -98,3 +120,10 @@ end
 ```
 
 These methods now return the parsed HTML as a _tree_ that you can query to build more advanced assertions.
+
+```ruby
+fragment = render_fragment Components::Hello.new
+
+assert_equal "Hello", fragment.at_css("h1").text
+assert_equal 1, fragment.css("h1").size
+```

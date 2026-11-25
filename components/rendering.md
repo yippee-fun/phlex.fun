@@ -4,47 +4,100 @@ title: Rendering Phlex Components
 
 # Rendering
 
-Since Phlex components are just Ruby classes, you can create a component by calling `new` on your component class and passing in your properties.
+A Phlex component is a Ruby class that describes a piece of HTML (or SVG). This page covers how to write one, how to turn it into a string, and how to render components inside other components.
+
+## Anatomy of a component
+
+A component has three parts: a class, an optional initializer and a `view_template` method.
 
 ```ruby
-class MyComponent < Phlex::HTML
+class Greeting < Phlex::HTML
   def initialize(name:)
     @name = name
   end
 
   def view_template
-    h1 { "Hello, #{@name}" }
+    h1(class: "greeting") { "Hello, #{@name}!" }
   end
 end
 ```
 
-```ruby
-component = MyComponent.new(name: "World")
-```
+- The **class** inherits from `Phlex::HTML`, which gives it a method for [every HTML element](/sgml/html-elements). For SVG, inherit from `Phlex::SVG` instead.
+- **`initialize`** takes the data the component needs — its properties — and stores it in instance variables. It’s a normal Ruby initializer, so you can use positional arguments, keyword arguments and defaults. If your component doesn’t need any data, you can leave it out.
+- **`view_template`** describes the output. Each element method outputs a tag. Keyword arguments become [attributes](/sgml/attributes) and the block is the content. When the block returns a String, it’s output as [text](/sgml/text) and escaped.
 
-::: tip
-If you pass a block to `new` here, your `initialize` method will not receive it. Instead, the `view_template` will be called with that block when the component is rendered. This means your component can handle blocks that were passed in at initialization and blocks that were passed in at render in the same way.
-:::
-
-## Rendering a component from the outside
-
-You can render a Phlex component by calling its `call` method. This interface is usually handled by framework-level integrations.
+Create an instance with `new` and render it to a String with `call`.
 
 ```ruby
-component = MyComponent.new(name: "World")
-
-html_output = component.call
+Greeting.new(name: "Ada").call
 ```
 
-You can optionally pass in a custom buffer object, which will be mutated and returned by `call`. Your buffer needs to respond to `<<` returning `self`. By default, Phlex uses a mutable string as its buffer but you could use a different object such as an `Array` or an `Enumerator::Yielder`.
+```html
+<h1 class="greeting">Hello, Ada!</h1>
+```
 
-While rendering, Phlex writes to an internal buffer, but `flush` will copy the internal buffer and write it to the output buffer. This is only relevant when streaming the output buffer.
+That’s the whole model. Everything else builds on these three parts.
 
-You could create an abstraction that calls `flush` while waiting on IO, for example.
+## Rendering to a string
+
+`call` renders the component and returns the output. Framework integrations such as [phlex-rails](/rails/views) call it for you, but you can use it directly anywhere you need a String of HTML — in a test, a Rake task or a Rack app.
+
+```ruby
+component = Greeting.new(name: "Ada")
+component.call # => "<h1 class=\"greeting\">Hello, Ada!</h1>"
+```
+
+There’s also a class-level shortcut. `Greeting.call(...)` passes its arguments to `new` and then calls `call` on the instance.
+
+```ruby
+Greeting.call(name: "Ada") # => "<h1 class=\"greeting\">Hello, Ada!</h1>"
+```
+
+`call` on an instance accepts a few options:
+
+- a **buffer** as its first argument (see [below](#using-a-custom-buffer)),
+- `context:` to share state with every component in the render — see [Context](/components/context),
+- `fragments:` to render only parts of the template — see [Fragments](/components/fragments).
+
+Because the class-level `call` passes everything to `new`, you need an instance to use these options.
+
+### Using a custom buffer
+
+By default, Phlex writes to a new mutable String. You can pass your own buffer as the first argument to `call`. The output is appended to it with `<<`, and `call` returns the result of that `<<`. For a String or an Array, that’s the buffer.
+
+```ruby
+buffer = []
+Greeting.new(name: "Ada").call(buffer)
+buffer # => ["<h1 class=\"greeting\">Hello, Ada!</h1>"]
+```
+
+The buffer can be any object that responds to `<<`, such as a String, an Array or an `Enumerator::Yielder`. This is the basis of [streaming](/components/streaming), where `flush` pushes what’s been rendered so far to the buffer before the component has finished.
+
+### A component renders once
+
+A component instance can only be rendered once. Rendering it a second time raises a `Phlex::DoubleRenderError`.
+
+```ruby
+component = Greeting.new(name: "Ada")
+component.call
+component.call
+# Phlex::DoubleRenderError: You can't render a Greeting more than once.
+```
+
+Instances are cheap, so create a new one each time. This also applies when you pass an instance to `render` from another component.
+
+If you need to know whether a component has started rendering, ask it with `rendering?`. It returns `false` before rendering and `true` from the moment rendering starts. It doesn’t go back to `false` afterwards.
+
+```ruby
+component = Greeting.new(name: "Ada")
+component.rendering? # => false
+component.call
+component.rendering? # => true
+```
 
 ## Rendering from a Rails controller <Badge type="danger" text="Rails" />
 
-Typically, you won’t call the `call` method yourself. In Rails, you can render a Phlex component from a controller with the `render` method.
+In Rails, you won’t usually call `call` yourself. Pass the component to `render` in your controller action instead.
 
 ```ruby
 def index
@@ -54,82 +107,211 @@ def index
 end
 ```
 
-Using the `render` method on the controller allows Rails to pass in a view context, which provides access to the Rails helpers via adapters.
+Rails passes its view context to the component, which is what makes [Rails helpers](/rails/helpers) available. See [Views](/rails/views) for more.
 
 ## Rendering from another component
 
-You can render a Phlex component from another component with the `render` instance method. Here, we’ll render the `Components::Article` component for each article passed into the `Views::Articles::Index` component.
+Inside a component, use the `render` method to render another component.
 
-```ruby{8}
-class Views::Articles::Index < Phlex::HTML
-  def initialize(articles:)
-    @articles = articles
+```ruby{13,14}
+class Card < Phlex::HTML
+  def view_template
+    article(class: "card") { yield }
+  end
+end
+
+class Welcome < Phlex::HTML
+  def initialize(name:)
+    @name = name
   end
 
   def view_template
-    @articles.each do |article|
-      render Components::Article.new(article:)
+    render Card do
+      render Greeting.new(name: @name)
+      p { "Signed in as #{@name}." }
     end
   end
 end
+
+Welcome.call(name: "Ada")
 ```
 
-If the component does not take any properties, you can omit the `.new` and render the component class directly. Phlex will automatically initialize an instance by calling `new` without any arguments.
+```html
+<article class="card">
+  <h1 class="greeting">Hello, Ada!</h1>
+  <p>Signed in as Ada.</p>
+</article>
+```
 
-```ruby{7}
-class Views::Articles::Index < Phlex::HTML
-  def initialize(articles:)
-    @articles = articles
+There are two things to notice here.
+
+First, if a component doesn’t need any arguments, you can pass the class to `render` and leave out `.new`. Phlex creates the instance for you. `render Card` is the same as `render Card.new`.
+
+Second, you can pass a block of content to a component. The block is output wherever the component calls `yield`. See [Yielding](/components/yielding) for everything you can do with content blocks.
+
+Inside the block, `self` is still the outer component — `Welcome` in this example. That’s why `@name` is available in the block even though it was never passed to `Card`.
+
+::: tip
+If you pass a block to `new`, your `initialize` method doesn’t receive it. Phlex keeps hold of it and uses it as the content block when the component is rendered. This means `render Card.new { ... }` and `render(Card.new) { ... }` behave the same way.
+:::
+
+If your components live in a [Kit](/components/kits), you can also render them by calling a method with the component’s name, such as `Card { ... }`.
+
+### Passing a component as a block
+
+Components respond to `to_proc`, so you can pass an instance in place of a block with `&`. The component is rendered as the content.
+
+```ruby
+class Item < Phlex::HTML
+  def view_template
+    li { "Item" }
+  end
+end
+
+class List < Phlex::HTML
+  def view_template
+    ul(&Item.new)
+  end
+end
+
+List.call
+```
+
+```html
+<ul>
+  <li>Item</li>
+</ul>
+```
+
+This works for anything that takes a content block, including other components: `render Card.new, &Item.new`.
+
+## What you can render
+
+`render` accepts more than components. This makes it easy to write a component that takes “something renderable” as a property and renders it without caring what it is.
+
+```ruby
+class Panel < Phlex::HTML
+  def initialize(header:, body:)
+    @header = header
+    @body = body
   end
 
   def view_template
-    render Components::Sidebar
-
-    @articles.each do |article|
-      render Components::Article.new(article:)
-    end
+    header { render @header }
+    main { render @body }
   end
 end
+
+Panel.call(header: "Tom & Jerry", body: Greeting.new(name: "Ada"))
 ```
 
-## Nesting components
+```html
+<header>Tom &amp; Jerry</header>
+<main>
+  <h1 class="greeting">Hello, Ada!</h1>
+</main>
+```
 
-You can pass a content block to a component when rendering. The block will be rendered when the component yields the content.
+Here’s everything `render` accepts:
 
-```ruby{7-9}
-class Components::Article < Phlex::HTML
-  def initialize(article:)
-    @article = article
-  end
+| You pass | What happens |
+| --- | --- |
+| A component instance (`Phlex::HTML` or `Phlex::SVG`) | The component is rendered. A block given to `render` becomes its content block. |
+| A component class | A new instance is created with no arguments and rendered. |
+| A `String` | Output as plain text, with HTML escaped. |
+| A `Proc` or `Method` | Called, and whatever it outputs is rendered. See [below](#procs-and-methods). |
+| An `Enumerable`, such as an `Array` | Each item is passed to `render` in turn. |
+| `nil` | Nothing is output. If you also pass a block, the block is rendered. |
+| A class that isn’t a Phlex component | Nothing is output. |
+| Anything else | Raises a `Phlex::ArgumentError`. |
 
+For example, rendering an Integer raises:
+
+```ruby
+render 1
+# Phlex::ArgumentError: You can't render a 1.
+```
+
+`render` always returns `nil`.
+
+### Procs and methods
+
+When you render a `Proc` or a `Method`, Phlex looks at its arity:
+
+- if it takes **no arguments**, it’s called with none;
+- otherwise, it’s called with the component that’s rendering it.
+
+Like any other content block, if it doesn’t output anything itself, its return value is output as text.
+
+```ruby
+class Menu < Phlex::HTML
   def view_template
-    render Components::Card do
-      h1 { @article.title }
-    end
+    render method(:home_link)
+    render ["Docs", -> { " | " }, ->(component) { component.em { "Blog" } }]
+  end
+
+  def home_link
+    a(href: "/") { "Home" }
   end
 end
+
+Menu.call
 ```
 
-In this example, because the Card component _yields_, the context in the block (`self`) is the instance of the Article component. That’s why the `@article` instance variable is available in this block, even though it wasn’t passed down to the Card component.
+```html
+<a href="/">Home</a>Docs | <em>Blog</em>
+```
+
+### Rendering a block
+
+You can call `render` with only a block. The block is treated as a content block: it’s yielded the component and, if it doesn’t output anything, its return value is output as text.
+
+```ruby
+render { strong { "Hello" } }
+```
+
+```html
+<strong>Hello</strong>
+```
+
+This is mostly useful when the thing you’re rendering might be `nil` and the block is a fallback.
 
 ## Rendering Phlex components in ERB <Badge type="danger" text="Rails" />
 
-You can also render Phlex components from ERB and other Rails templating languages, such as [Slim](https://slim-template.github.io) and [Haml](https://haml.info). This works from views, partials or even [ViewComponent](https://viewcomponent.org) components.
+Phlex components are Rails renderables, so you can render them from ERB — and from other templating languages such as [Slim](https://slim-template.github.io) and [Haml](https://haml.info) — with Rails’ own `render` helper. This works in views, partials and [ViewComponent](https://viewcomponent.org) components.
 
 ```erb
-<%= render Card.new(title: "Hello") do %>
-  <h1>Inside Bar</h1>
+<%= render Components::Card.new(title: "Hello") do %>
+  <p>Inside the card</p>
 <% end %>
 ```
 
-When rendering from ERB, the block given to the component is expected to return an HTML safe string (an `ActiveSupport::SafeBuffer`). This happens automatically from ERB and Phlex confirms this as part of the integration.
+The markup inside the block is output where the component yields. The component writes to the same output buffer as the ERB template, so the block doesn’t need to return anything special.
+
+Component classes are renderables too. If a component takes no arguments, you can leave out `.new`, in ERB or in a controller.
+
+```erb
+<%= render Components::Sidebar %>
+```
+
+If your component yields an interface, see [Yielding from ERB](/components/yielding#rendering-interface-yielding-components-from-erb).
+
+### `render_in`
+
+Rails renders a component by calling its `render_in` method with the view context. You don’t normally need to call it, but it’s there if you have a view context and want HTML.
+
+```ruby
+html = Components::Sidebar.new.render_in(view_context)
+```
+
+`render_in` returns an HTML-safe String. It also reads the `X-Fragments` request header to decide which [fragments](/components/fragments) to render.
 
 ## Rendering Rails partials in Phlex <Badge type="danger" text="Rails" />
 
-To render your existing Rails partials in Phlex, you need to use `render` and `partial` together. `partial` takes the partial name and parameters and returns a renderable object.
+To render a Rails partial from a component, use `render` and `partial` together. `partial` takes the partial’s name and its locals, and returns an object that `render` knows how to render.
 
 ```ruby{7-9}
-class Components::Article < Phlex::HTML
+class Components::Article < Components::Base
   def initialize(article:)
     @article = article
   end
@@ -142,14 +324,14 @@ class Components::Article < Phlex::HTML
 end
 ```
 
-The `partial` method is necessary because `render` will render plain strings as plain text.
+You need `partial` because `render` outputs a plain String as text.
 
 ## Rendering ViewComponent components in Phlex <Badge type="danger" text="Rails" />
 
-You can render ViewComponent components in much the same way that you’d render Phlex components.
+You can render ViewComponent components in the same way you render Phlex components.
 
 ```ruby{7-9}
-class Components::Article < Phlex::HTML
+class Components::Article < Components::Base
   def initialize(article:)
     @article = article
   end
@@ -162,67 +344,30 @@ class Components::Article < Phlex::HTML
 end
 ```
 
-## Other renderables
+## Other renderables in Rails <Badge type="danger" text="Rails" />
 
-The `render` method in Phlex is designed for maximal polymorphism. You should be able to create a component that takes a renderable as a property and then renders it in the template.
+With phlex-rails, `render` accepts a few more things. They’re handed to Rails’ own `render` and the result is output.
 
-```ruby
-class Example < Phlex::HTML
-  def initialize(renderable:)
-    @renderable = renderable
-  end
-
-  def view_template
-    render @renderable
-  end
-end
-```
-
-The polymorphism of `render` here means this _renderable_ property could be any of the following:
-
-| Type                           | Description                                           |
-| ------------------------------ | ----------------------------------------------------- |
-| `Phlex::HTML`                  | Renders the HTML component.                           |
-| `Phlex::SVG`                   | Renders the SVG component.                            |
-| `String`                       | Renders the value as plain text.                      |
-| `Proc`                         | Yields the proc.                                      |
-| `Method`                       | Yields the method.                                    |
-| `nil`                          | No-op (and no error)                                  |
-| `Class(Phlex::HTML)`           | Creates a new instance of the class and renders that. |
-| `Class(Phlex::SVG)`            | Creates a new instance of the class and renders that. |
-| `Enumerable` (such as `Array`) | Iterates by calling `each` and renders each item.     |
-| Anything else                  | Raises a `Phlex::ArgumentError`                       |
-
-### Other renderables in Rails <Badge type="danger" text="Rails" />
-
-In Rails, ViewComponent components are also accepted as renderables and they are handled in a way that adapts Phlex for the slots.
-
-In the else condition, instead of raising a `Phlex::ArgumentError`, Phlex delegates to Rails’ own `render` method.
-
-The inputs and outputs are adapted. For example, Rails expects renderable blocks to return an HTML safe string (an `ActiveSupport::SafeBuffer`) so Phlex automatically wraps your block in a `capture` before passing it down.
-
-## Conditional rendering
-
-Phlex components can implement a #render? method. If this method returns false, the component will not be rendered. This allows you to move conditional logic out of the component's consumer and encapsulate it within the component itself.
+| You pass | What happens |
+| --- | --- |
+| An object that responds to `render_in`, such as a ViewComponent component or the result of `partial(...)` | Rails renders it. |
+| An object that responds to `to_partial_path`, such as an Active Record model | Rails renders the model’s partial. |
 
 ```ruby
-class NotificationsBadge < Phlex::HTML
-  def initialize(notifications:)
-    @notifications = notifications
-  end
-
-  def view_template
-    span(class: "badge badge-primary") { @notifications.size }
-  end
-
-  def render?
-    @notifications.size > 0
-  end
-end
-
-NotificationsBadge.new(notifications: ["You are awesome!"]).call
-# => "<span class="badge badge-primary">1</span>
-
-NotificationsBadge.new(notifications: []).call
-# => "" 
+render @article  # renders articles/_article
+render @articles # renders articles/_article once for each article
 ```
+
+A collection of models, whether it’s an Array or an `ActiveRecord::Relation`, is [iterated by Phlex](#what-you-can-render), with each model rendered through its partial.
+
+::: warning
+This isn’t Rails’ collection rendering. Each partial is rendered on its own, so it doesn’t get the `article_counter` and `article_iteration` locals.
+:::
+
+If you pass a block, Phlex captures its output and gives it to Rails as the block’s content.
+
+Anything else still raises a `Phlex::ArgumentError`.
+
+## Deciding whether to render
+
+A component can decide for itself whether it should be rendered by defining a `render?` method. See [Callbacks](/components/callbacks#conditional-rendering) for `render?` and for the `before_template`, `around_template` and `after_template` hooks.
