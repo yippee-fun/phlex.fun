@@ -112,6 +112,12 @@ end
 
 In this example, because the Card component _yields_, the context in the block (`self`) is the instance of the Article component. That’s why the `@article` instance variable is available in this block, even though it wasn’t passed down to the Card component.
 
+Pass the content block to `render`. A block given to `new` is passed to the component’s `initialize`, which ignores it, so with braces, wrap the component in parentheses.
+
+```ruby
+render(Components::Card.new) { h1 { @article.title } }
+```
+
 ## Rendering Phlex components in ERB <Badge type="danger" text="Rails" />
 
 You can also render Phlex components from ERB and other Rails templating languages, such as [Slim](https://slim-template.github.io) and [Haml](https://haml.info). This works from views, partials or even [ViewComponent](https://viewcomponent.org) components.
