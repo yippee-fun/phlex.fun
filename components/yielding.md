@@ -4,7 +4,7 @@ title: Yielding content in Phlex Components
 
 # Yielding
 
-In previous section, we learned how to render components and pass in a block of content. In this section will look at how to yield that block of content.
+In the [previous section](/components/rendering), we learned how to render components and pass in a block of content. In this section, we’ll look at how a component yields that block of content.
 
 We’ll also explore how you can yield an interface that allows the outer component to use behaviours defined on your inner component.
 
@@ -31,13 +31,35 @@ class Card < Phlex::HTML
 end
 ```
 
-When you call this component with a content block, it will be output at the yield.
+When you render this component with a content block, the block is output at the `yield`.
 
 ```ruby
 render Card.new("Hello") do
   p { "Hello, World" }
 end
 ```
+
+```html
+<article class="card">
+  <h2 class="card-title">Hello</h2>
+  <p>Hello, World</p>
+</article>
+```
+
+If the block returns a String without outputting anything, the String is output as text, and escaped.
+
+```ruby
+render(Card.new("Hello")) { "Hello, <World>" }
+```
+
+```html
+<article class="card">
+  <h2 class="card-title">Hello</h2>
+  Hello, &lt;World&gt;
+</article>
+```
+
+### Passing the block to an element
 
 Because HTML element methods yield their blocks, you can pass a content block received in a `view_template` down to an HTML element rather than yielding it yourself.
 
@@ -55,6 +77,30 @@ class Card < Phlex::HTML
   end
 end
 ```
+
+```html
+<article class="card">
+  <h2 class="card-title">Hello</h2>
+  <div class="card-content">
+    <p>Hello, World</p>
+  </div>
+</article>
+```
+
+### Optional content
+
+This is Ruby, so a bare `yield` raises a `LocalJumpError` (“no block given (yield)”) when the component is rendered without a content block. If the content is optional, check for it first.
+
+```ruby
+def view_template
+  article(class: "card") do
+    h2(class: "card-title") { @title }
+    yield if block_given?
+  end
+end
+```
+
+Passing the block to an element, as in the previous example, also works without a content block. The element is rendered empty.
 
 ## Yielding an interface
 
@@ -116,6 +162,47 @@ class Nav < Phlex::HTML
     span(class: "special-nav-divider")
   end
 end
+```
+
+Rendering the nav above gives us this:
+
+```html
+<nav class="special-nav">
+  <a class="special-nav-item" href="/"><strong>Home</strong></a><a class="special-nav-item" href="/about">About</a><span class="special-nav-divider"></span><a class="special-nav-item" href="/contact">Contact</a>
+</nav>
+```
+
+### Yielding something else
+
+If you `yield` with arguments, the content block receives those arguments instead of the component.
+
+```ruby
+class List < Phlex::HTML
+  def initialize(items)
+    @items = items
+  end
+
+  def view_template
+    ul do
+      @items.each do |item|
+        li { yield item }
+      end
+    end
+  end
+end
+```
+
+```ruby
+render List.new(["Apple", "Banana"]) do |item|
+  strong { item }
+end
+```
+
+```html
+<ul>
+  <li><strong>Apple</strong></li>
+  <li><strong>Banana</strong></li>
+</ul>
 ```
 
 ## Vanishing the yield
@@ -213,8 +300,10 @@ First, we’ll iterate over the columns and render each header.
 ```ruby
 table do
   thead do
-    @columns.each do |column|
-      th { column[:header] }
+    tr do
+      @columns.each do |column|
+        th { column[:header] }
+      end
     end
   end
 end
@@ -250,8 +339,10 @@ class Table < Phlex::HTML
 
     table do
       thead do
-        @columns.each do |column|
-          th { column[:header] }
+        tr do
+          @columns.each do |column|
+            th { column[:header] }
+          end
         end
       end
 
@@ -283,9 +374,78 @@ render Table.new(@people) do |t|
 end
 ```
 
+```html
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Age</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Ada</td>
+      <td>36</td>
+    </tr>
+    <tr>
+      <td>Grace</td>
+      <td>85</td>
+    </tr>
+  </tbody>
+</table>
+```
+
+### `vanish`
+
+To recap, `vanish` yields a block and throws away anything it outputs. Like `yield` in a `view_template`, it yields the component to the block. Any arguments you pass to `vanish` are yielded instead. It always returns `nil`.
+
+`vanish` is a private method, so you can call it from inside your component but not on a component from outside.
+
+You can also yield early from a `before_template` [callback](/components/callbacks#before-template-and-after-template), which keeps the `view_template` free of the setup step.
+
+## Capturing output
+
+`capture` is like `vanish`, except it gives you the output back as a String instead of throwing it away. Nothing is written to the buffer.
+
+This is useful when you need to look at the content before deciding what to do with it. Here’s a panel that renders nothing at all when its content is empty.
+
+```ruby
+class Panel < Phlex::HTML
+  def view_template(&)
+    content = capture(&)
+    return if content.empty?
+
+    section(class: "panel") { raw safe(content) }
+  end
+end
+```
+
+```ruby
+render(Panel) { p { "Hi" } }
+```
+
+```html
+<section class="panel">
+  <p>Hi</p>
+</section>
+```
+
+```ruby
+render(Panel) { }
+```
+
+This time there’s no output.
+
+There are a few things to know about `capture`:
+
+- It returns an ordinary String. If you output it with `plain` or return it from a block, it’s escaped like any other String. To output it as HTML, use [`raw safe(...)`](/sgml/raw) as we did above. When Rails is rendering, it’s an [HTML-safe String](/sgml/helpers#capture) instead.
+- Arguments are yielded to the block: `capture(1, 2) { |a, b| plain a + b }` returns `"3"`. Without arguments, the component is yielded.
+- Without a block, it returns an empty String.
+- Unlike `vanish`, it’s a public method.
+
 ## Rendering interface-yielding components from ERB <Badge type="danger" text="Rails" />
 
-When you render a Phlex component from ERB, Phlex automatically wraps the yield in an adapter. The adapter essentially makes it as if each method called on the component was wrapped in a `capture`, which means you can use both techniques discussed above.
+When Rails renders a Phlex component from ERB, the component writes to the same output buffer as the ERB template. The block is yielded the component, so methods like `nav.item` output their HTML right where you call them, as they do in Phlex. That means you can use both of the techniques discussed above.
 
 The Nav component can be rendered like this:
 
@@ -307,7 +467,9 @@ The Nav component can be rendered like this:
 <% end %>
 ```
 
-Because each call to `item`, `divider` is wrapped in a `capture`, it returns a string of HTML rather than pushing it to the Nav’s buffer. That means it’s compatible with ERB’s expectations.
+Notice that `item` and `divider` are called with `<% %>` and not `<%= %>`. They’ve already written their output to the buffer by the time they return. With `<%= %>`, ERB would also output the method’s return value. Element methods return `nil`, so it often makes no difference, but a method that happens to return a String would get that String output too. This is why the `column` method above returns `nil`.
+
+If you need a method that returns HTML instead of outputting it — to match the interface of a Rails builder, for example — wrap its body in `capture`.
 
 The Table component can be rendered like this:
 

@@ -1,5 +1,9 @@
 # Phlex.fun
 
+The documentation site for [Phlex](https://github.com/yippee-fun/phlex), built with [VitePress](https://vitepress.dev).
+
+The docs describe the latest released versions of `phlex` and `phlex-rails`, not the `main` branches.
+
 ## Contributing
 
 You may need to [install bun](https://bun.sh/docs/installation) to run this project. Once bun is installed:
@@ -10,6 +14,11 @@ You may need to [install bun](https://bun.sh/docs/installation) to run this proj
 - Navigate to `http://localhost:5173/` in your browser
 - Now you can make changes to the markdown files and when you save, the browser will automatically reload with the changes
 
-## Spellcheck
+New pages need an entry in the sidebar in `.vitepress/config.mts`.
 
-To perform a spellcheck, run `bun run spellcheck`.
+## Checks
+
+CI runs a spellcheck and a build on every pull request. To run them locally:
+
+- `bun run spellcheck` — add legitimate new words to `project-words.txt`
+- `bun run docs:build`

@@ -8,7 +8,7 @@ Phlex doesn’t render any whitespace around elements by default, but sometimes 
 
 ::: code-group
 
-```ruby [Ruby]
+```ruby [Phlex]
 nav do
   a(href: "/") { "Home" }
   whitespace
@@ -23,3 +23,21 @@ end
 :::
 
 If passed a block, `whitespace` outputs a single space character before and after yielding the block.
+
+::: code-group
+
+```ruby [Phlex]
+p do
+  plain "Read"
+  whitespace { a(href: "/docs") { "the docs" } }
+  plain "first."
+end
+```
+
+```html [HTML]
+<p>Read <a href="/docs">the docs</a> first.</p>
+```
+
+:::
+
+You can also include the spaces in your [text](/sgml/text). `plain "Read "` works just as well.

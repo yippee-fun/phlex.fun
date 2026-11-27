@@ -1,3 +1,7 @@
+---
+title: How Phlex works under the hood
+---
+
 # Under the hood
 
 You’ve successfully installed Phlex and rendered your first component. Now let’s take a moment to understand what’s happening behind the scenes. To do this, we’re going to build a miniature version of Phlex from scratch.
@@ -23,10 +27,11 @@ def div
   @buffer << "<div>"
   yield if block_given?
   @buffer << "</div>"
+  nil
 end
 ```
 
-Our `div` method first pushes an opening `<div>` tag onto the buffer, then yields itself to the block if a block is given. Finally, it pushes a closing `</div>` tag onto the buffer.
+Our `div` method first pushes an opening `<div>` tag onto the buffer, then yields to the block if a block is given. Finally, it pushes a closing `</div>` tag onto the buffer. It returns `nil` because its job is to push to the buffer, not to return anything useful.
 
 Let’s add one more method so we can render our components to a string.
 
@@ -56,6 +61,7 @@ class Component
     @buffer << "<div>"
     yield if block_given?
     @buffer << "</div>"
+    nil
   end
 end
 ```
@@ -83,31 +89,42 @@ puts HelloWorld.new.call
 You should see the following output with one div nested inside another:
 
 ```html
-<div><div></div></div>
+<div>
+  <div></div>
+</div>
 ```
 
 Ruby handled the hierarchy for us. We got part way into the first div when we _yielded_ to the block which started a new div. Since there was no block given to this inner div, it closed immediately yielding control back to the original outer div, which then closed.
 
 ## Handling text content
 
-Let’s add the ability to render text content inside our divs. We’ll update the method to accept an optional `content` argument. If `content` is provided, we’ll push it onto the buffer. Otherwise, we’ll yield to the block as before if a block is given.
+Let’s add the ability to render text content inside our divs. In Phlex, you do this by returning a String from the block.
 
 ```ruby
-def div(content = nil)
+div { "Hello, World!" }
+```
+
+But a block might also render other elements, like the outer div in our `HelloWorld` component. How do we know which kind of block we were given?
+
+The trick is to check whether the buffer changed while the block was running. If it did, the block rendered something itself and we can ignore its return value. If it didn’t, and the block returned a String, we’ll push that String onto the buffer.
+
+```ruby
+def div
   @buffer << "<div>"
 
-  if content
-    @buffer << content
-  elsif block_given?
-    yield
+  if block_given?
+    original_length = @buffer.length
+    content = yield
+    @buffer << content if original_length == @buffer.length && String === content
   end
 
   @buffer << "</div>"
+  nil
 end
 ```
 
 ::: warning
-This implementation doesn’t handle HTML safety. In a real-world scenario, you’d want to escape any HTML content to prevent cross-site-scripting attacks, where a user could inject malicious code into your page by providing it as their name, for example.
+This implementation doesn’t handle HTML safety. In a real-world scenario, you’d want to escape any HTML content to prevent cross-site-scripting attacks, where a user could inject malicious code into your page by providing it as their name, for example. Phlex [does this for you](/miscellaneous/structural-safety).
 :::
 
 Let’s go back to our `HelloWorld` component and add some text content to the inner div.
@@ -116,7 +133,7 @@ Let’s go back to our `HelloWorld` component and add some text content to the i
 class HelloWorld < Component
   def view_template
     div {
-      div("Hello, World!")
+      div { "Hello, World!" }
     }
   end
 end
@@ -125,8 +142,12 @@ end
 Now when we render our `HelloWorld` component, we should see the following output:
 
 ```html
-<div><div>Hello, World!</div></div>
+<div>
+  <div>Hello, World!</div>
+</div>
 ```
+
+The outer div’s block returned `nil`, since that’s what the inner `div` call returns. But it wouldn’t have mattered what it returned, because the buffer had already changed.
 
 ## Handling attributes
 
@@ -134,8 +155,8 @@ Let’s add the ability to render attributes on our divs. We’ll update the met
 
 Now we want to start by pushing just the opening `<div` onto the buffer. Then we’ll iterate over the `attributes` hash and push each key-value pair onto the buffer. Finally, we’ll push the closing `>` onto the buffer and continue as before.
 
-```ruby{2-8}
-def div(content = nil, **attributes)
+```ruby{1-8}
+def div(**attributes)
   @buffer << "<div"
 
   attributes.each do |key, value|
@@ -144,13 +165,14 @@ def div(content = nil, **attributes)
 
   @buffer << ">"
 
-  if content
-    @buffer << content
-  elsif block_given?
-    yield
+  if block_given?
+    original_length = @buffer.length
+    content = yield
+    @buffer << content if original_length == @buffer.length && String === content
   end
 
   @buffer << "</div>"
+  nil
 end
 ```
 
@@ -160,7 +182,7 @@ Let’s go back to our `HelloWorld` component and add a class attribute to each 
 class HelloWorld < Component
   def view_template
     div(class: "outer") {
-      div("Hello, World!", class: "inner")
+      div(class: "inner") { "Hello, World!" }
     }
   end
 end
@@ -169,12 +191,14 @@ end
 Now when we render our `HelloWorld` component, we should see the following output:
 
 ```html
-<div class="outer"><div class="inner">Hello, World!</div></div>
+<div class="outer">
+  <div class="inner">Hello, World!</div>
+</div>
 ```
 
 ## Nesting components
 
-For the final step, let’s add the ability to nest components inside one another.
+For the next step, let’s add the ability to nest components inside one another.
 
 To do this we’ll need the ability to pass a buffer to a component when we come to rendering it. Let’s remove the original `initialize` method and update the `call` method to accept a buffer argument instead.
 
@@ -190,11 +214,12 @@ end
 
 The buffer still defaults to an empty array, but now we can pass in a buffer from the outside. The block allows us to yield content in our template.
 
-Let’s define a `render` method that takes a component and renders, passing the buffer and the block.
+Let’s define a `render` method that takes a component and renders it, passing the buffer and the block.
 
 ```ruby
 def render(component, &)
   component.call(@buffer, &)
+  nil
 end
 ```
 
@@ -208,7 +233,7 @@ class Component
     @buffer.join
   end
 
-  def div(content = nil, **attributes)
+  def div(**attributes)
     @buffer << "<div"
 
     attributes.each do |key, value|
@@ -217,17 +242,19 @@ class Component
 
     @buffer << ">"
 
-    if content
-      @buffer << content
-    elsif block_given?
-      yield
+    if block_given?
+      original_length = @buffer.length
+      content = yield
+      @buffer << content if original_length == @buffer.length && String === content
     end
 
     @buffer << "</div>"
+    nil
   end
 
   def render(component, &)
     component.call(@buffer, &)
+    nil
   end
 end
 ```
@@ -249,7 +276,7 @@ class HelloWorld < Component
   def view_template
     div(class: "outer") {
       render Card.new do
-        div("Hello, World!", class: "inner")
+        div(class: "inner") { "Hello, World!" }
       end
     }
   end
@@ -268,33 +295,43 @@ The output should now be something like this (without newlines and indentation):
 
 ## Plain text
 
-In about 30 lines of code, we’ve build a simple component abstraction for rendering HTML. We can render nested divs with content and attributes and we can nest components inside one another.
+In about 30 lines of code, we’ve built a simple component abstraction for rendering HTML. We can render nested divs with content and attributes and we can nest components inside one another.
 
-However, what we can’t do is render text without wrapping it in a div. Let’s fix that with a new method called `plain` that simply pushes content onto the buffer.
+However, what we can’t do is render text alongside other elements, since a block’s return value is ignored once it has rendered something. Let’s fix that with a new method called `plain` that pushes content onto the buffer.
 
 ```ruby
 def plain(content)
   @buffer << content
+  nil
 end
 ```
 
-Now we can update our `HelloWorld` component to render the text directly inside the `Card` component:
+Now we can update our `HelloWorld` component to render some text next to a div inside the `Card` component:
 
 ```ruby
 class HelloWorld < Component
   def view_template
     div(class: "outer") {
       render Card.new do
-        plain "Hello, World!"
+        div(class: "inner") { "Hello" }
+        plain ", World!"
       end
     }
   end
 end
 ```
 
+```html
+<div class="outer">
+  <div class="card">
+    <div class="inner">Hello</div>, World!
+  </div>
+</div>
+```
+
 ## Supporting advanced DSLs
 
-What if we want to our Card component to expose an interface for interacting with it. For example, we might want to set the title.
+What if we want our Card component to expose an interface for interacting with it. For example, we might want to set the title.
 
 Let’s start by updating the Card component as if this worked and then we’ll get it working.
 
@@ -305,7 +342,7 @@ class Card < Component
   end
 
   def title(content)
-    div(content, class: "card-title")
+    div(class: "card-title") { content }
   end
 end
 ```
@@ -340,7 +377,7 @@ end
 
 This is a little mind-bending. We’re now always passing a block to `view_template`, that yields self to the block that was passed to `call` if a block was passed.
 
-The final `Component` class should look like this — just 33 lines of Ruby:
+The final `Component` class should look like this — just 36 lines of Ruby:
 
 ```ruby
 class Component
@@ -350,7 +387,7 @@ class Component
     @buffer.join
   end
 
-  def div(content = nil, **attributes)
+  def div(**attributes)
     @buffer << "<div"
 
     attributes.each do |key, value|
@@ -359,21 +396,24 @@ class Component
 
     @buffer << ">"
 
-    if content
-      @buffer << content
-    elsif block_given?
-      yield
+    if block_given?
+      original_length = @buffer.length
+      content = yield
+      @buffer << content if original_length == @buffer.length && String === content
     end
 
     @buffer << "</div>"
+    nil
   end
 
   def plain(content)
     @buffer << content
+    nil
   end
 
   def render(component, &)
     component.call(@buffer, &)
+    nil
   end
 end
 ```
@@ -387,3 +427,13 @@ Our `HelloWorld` component with the `card.title` interface should now render the
   </div>
 </div>
 ```
+
+## What the real thing adds
+
+Our miniature version has the same shape as Phlex. Elements are methods that push to a buffer, text comes from block return values or `plain`, and components render each other by sharing that buffer. Phlex builds on this with:
+
+- an element method for every [HTML](/sgml/html-elements) and [SVG](/sgml/svg-elements) element, generated from a list rather than written by hand;
+- [HTML escaping](/miscellaneous/structural-safety) for text and attributes;
+- a much more capable [attribute builder](/sgml/attributes) with a [cache](/design/attribute-caching) in front of it;
+- a state object, shared by every component in a render, that holds the buffer along with the [context](/components/context) and the bookkeeping for [fragments](/components/fragments), [caching](/components/caching) and [`capture`](/sgml/helpers#capture);
+- hooks around `view_template`, such as [`render?`](/components/rendering) and the [template callbacks](/components/callbacks).

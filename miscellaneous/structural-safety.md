@@ -1,3 +1,7 @@
+---
+title: Structural safety in Phlex
+---
+
 # Structural Safety
 
 Phlex can provide strong HTML safety due to its structural design.
@@ -19,7 +23,7 @@ Phlex prevents cross-site-scripting in a number of different ways.
 
 ### Text content
 
-All text content is escaped by default. There are five characters that can be used to construct dangerous strings in HTML and they are escaped according to this table:
+All [text content](/sgml/text) is escaped by default. There are five characters that can be used to construct dangerous strings in HTML and they are escaped according to this table:
 
 | Original character | Escape   |
 | ------------------ | -------- |
@@ -29,6 +33,15 @@ All text content is escaped by default. There are five characters that can be us
 | `"`                | `&quot;` |
 | `'`                | `&#39;`  |
 
+So the example above renders the name as harmless text.
+
+```html
+<dt>Name</dt>
+<dd>&lt;script type=&quot;text/javascript&quot;&gt;alert(1)&lt;/script&gt;</dd>
+```
+
+This applies to every element, including `script` and `style`, and to text in [comments](/sgml/comments).
+
 ### Attribute keys
 
 Because Phlex uses Ruby keyword arguments for attributes, it is possible that you might output unsafe strings in attribute keys.
@@ -37,7 +50,7 @@ Because Phlex uses Ruby keyword arguments for attributes, it is possible that yo
 div(**@user.settings)
 ```
 
-When rendering these attribute keys, Phlex looks for the unsafe characters and raises an error if any are found. In this case, it raises rather than escaping because it’s not a good idea to splat user data like this. The code should be fixed.
+When rendering these attribute keys, Phlex looks for unsafe characters — whitespace, `<`, `>`, `&`, `"`, `'`, `/` and `=` — and raises a `Phlex::ArgumentError` if any are found. In this case, it raises rather than escaping because it’s not a good idea to splat user data like this. The code should be fixed.
 
 ### Attribute values
 
@@ -48,6 +61,18 @@ input type: "text", value: @user.name
 ```
 
 Phlex wraps attribute values in double quotes (`"`) so it escapes double quotes in the attribute values, replacing them with `&quot;`.
+
+It also escapes `<` and `>` as `&lt;` and `&gt;`. Inside a quoted value these can’t start a tag, but they could end something the element is rendered inside. A value containing `-->` would close a [comment](/sgml/comments), and one containing `</noscript>` would close a `<noscript>` element, whose content browsers don’t parse as markup when scripting is on. Escaping doesn’t change the value the browser reads.
+
+```ruby
+input type: "text", value: %(--> "Ada" <script>)
+```
+
+```html
+<input type="text" value="--&gt; &quot;Ada&quot; &lt;script&gt;">
+```
+
+This applies to every attribute value, including values branded as safe.
 
 ### Unsafe attributes
 
@@ -60,13 +85,22 @@ Phlex prevents the use of:
 3. `sandbox`
 4. `http-equiv`
 
+```ruby
+button(onclick: "alert(1)")
+# Phlex::ArgumentError: Unsafe attribute name detected: onclick.
+```
+
+The same goes for names spelled with a nested Hash, such as `http: { equiv: "refresh" }`.
+
 ::: tip
 
-You can bypass this guard by branding the value as _safe_ with the `safe` method.
+You can bypass this guard by branding the value as _safe_ with the [`safe`](/sgml/raw#safe) method.
 
 ```ruby
 button onclick: safe("alert(1)")
 ```
+
+Only Phlex’s own `safe` does this. A String that Rails has marked as `html_safe` is safe to output as HTML, not to run as a script, so it’s checked like any other String.
 
 :::
 
@@ -78,7 +112,7 @@ Attributes that reference URLs can be used to execute JavaScript code by using t
 <a href="javascript:alert(1)">Click me</a>
 ```
 
-Phlex strips the JavaScript protocol from the following ref attributes:
+When the value of one of the following ref attributes uses the JavaScript protocol, Phlex leaves the whole attribute out. It doesn’t raise an error, and the rest of the element is rendered as normal.
 
 1. `href`
 2. `src`
@@ -88,12 +122,26 @@ Phlex strips the JavaScript protocol from the following ref attributes:
 6. `dynsrc`
 7. `background`
 8. `ping`
+9. `data`, which takes a URL on `<object>`
+10. `to`, `from`, `by` and `values`, which SVG animation elements such as `<set>` and `<animate>` write to the attribute named by `attributeName`, which can be `href`
 
-Browsers are incredibly lenient in what they count as the JavaScript protocol so Phlex takes care to ignore whitespace, to match uppercase, lowercase or mixed case and to prevent tricks like `javascript:javascript:alert(1)`.
+A namespace prefix makes no difference. In an SVG document parsed as XML, any prefix can be bound to XLink, so `xlink:href` and `a:href` are checked the same way as `href`.
+
+```ruby
+a(href: "javascript:alert(1)") { "Click me" }
+```
+
+```html
+<a>Click me</a>
+```
+
+Browsers are incredibly lenient in what they count as the JavaScript protocol so Phlex takes care to ignore whitespace, to match uppercase, lowercase or mixed case, to decode HTML character references such as `&colon;` and `&#58;`, and to prevent tricks like `javascript:javascript:alert(1)`.
+
+This check applies to these attributes on any element, whatever the case of the attribute name. It doesn’t apply to attributes that only share a suffix, such as `data-href`.
 
 ::: tip
 
-You can bypass this guard by branding the value as _safe_ with the `safe` method.
+You can bypass this guard by branding the value as _safe_ with the `safe` method. As with unsafe attributes, an `html_safe` String from Rails doesn’t count.
 
 ```ruby
 a(href: safe("javascript:alert(1)")) { "Click me" }
@@ -101,19 +149,31 @@ a(href: safe("javascript:alert(1)")) { "Click me" }
 
 :::
 
+### Dynamic tag names
+
+[`tag`](/sgml/helpers#tag) renders an element whose name is decided at runtime, and that name might come from a user. So `tag` refuses to render `<script>`, `<style>` and `<base>`, raising a `Phlex::ArgumentError`. Their content or attributes run as code, or change where code is loaded from. Call `script`, `style` or `base` directly when you mean to render one.
+
+### Raw output
+
+The only way to output a String as HTML without escaping is to [brand it as safe](/sgml/raw). [`raw`](/sgml/raw) raises an error if you give it a regular String, so you can’t skip escaping by accident.
+
 ## Additional measures
 
 While Phlex makes every effort to prevent cross-site-scripting attacks by default, there are some additional measures you can take to be extra safe.
 
 ### Configure a strong Content Security Policy
 
-We strongly recommend configuring a strong [Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) (CSP) that does not allow unsafe-inline JavaScript. Please also see the [Rails Guide to configuring a Content Security Policy](https://guides.rubyonrails.org/security.html#content-security-policy-header).
+We strongly recommend configuring a strong [Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP) (CSP) that does not allow unsafe-inline JavaScript. Please also see the [Rails Guide to configuring a Content Security Policy](https://guides.rubyonrails.org/security.html#content-security-policy-header).
 
 ### Don’t make a habit of branding things as safe
 
-The `safe` method — and in Rails, calling `.html_safe` on a String — brand that string as HTML safe. Doing this bypasses security features and allows for the string to be output as HTML.
+The `safe` method — and in Rails, calling `.html_safe` on a String — brand that string as HTML safe. Doing this allows for the string to be output as HTML, and `safe` also bypasses the attribute guards above.
 
 While it’s sometimes necessary to use this feature, it should be used carefully and kept close to the escaping/sanitization logic.
+
+### Be careful with URLs
+
+Phlex removes `javascript:` URLs, but it doesn’t validate URLs in any other way. If you render links that users provide, check that they point somewhere you’re happy to send people.
 
 ## How is this different to ERB?
 

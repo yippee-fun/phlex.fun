@@ -1,19 +1,34 @@
 import { defineConfig } from "vitepress";
 
+const description =
+	"Phlex is a Ruby gem for building fast, object-oriented HTML, SVG and CSV views in pure Ruby.";
+
 export default defineConfig({
 	title: "Phlex",
-	description: "object oriented view components in Ruby.",
+	description,
 	sitemap: { hostname: "https://www.phlex.fun" },
 	lastUpdated: true,
+	srcExclude: [
+		"README.md",
+		"ai.md",
+		"compare/**",
+		"design/index.md",
+		"design/performance.md",
+	],
+	head: [
+		["meta", { property: "og:type", content: "website" }],
+		["meta", { property: "og:site_name", content: "Phlex" }],
+		["meta", { property: "og:title", content: "Phlex — views in pure Ruby" }],
+		["meta", { property: "og:description", content: description }],
+		["meta", { property: "og:url", content: "https://www.phlex.fun" }],
+		["meta", { name: "twitter:card", content: "summary" }],
+	],
 	themeConfig: {
 		search: {
 			provider: "local",
-			// options: {
-			// 	appId: "9KRQLH6PAZ",
-			// 	apiKey: "ad1d773445156475c945970616b76760",
-			// 	indexName: "phlex",
-			// },
 		},
+
+		outline: [2, 3],
 
 		editLink: {
 			pattern: "https://github.com/yippee-fun/phlex.fun/edit/main/:path",
@@ -21,27 +36,38 @@ export default defineConfig({
 
 		nav: [
 			{ text: "Home", link: "/" },
-			{ text: "Docs", link: "/introduction" },
+			{ text: "Docs", link: "/introduction/" },
+			{ text: "Rails", link: "/rails/generators" },
 			{ text: "Support", link: "https://www.rubyforum.org/tag/phlex/83" },
 			{ text: "v1 Docs", link: "https://v1.phlex.fun" },
 		],
 
 		sidebar: [
 			{
-				text: "Project",
+				text: "Introduction",
 				collapsed: false,
 				items: [
-					{ text: "Community", link: "/project/community" },
-					{ text: "GitHub", link: "https://github.com/yippee-fun/phlex" },
+					{ text: "What is Phlex?", link: "/introduction/" },
+					{ text: "Getting started", link: "/introduction/getting-started" },
+					{ text: "Build your first page", link: "/introduction/tutorial" },
+					{ text: "Coming from ERB", link: "/introduction/from-erb" },
 				],
 			},
 
 			{
-				text: "Introduction",
+				text: "Writing HTML",
 				collapsed: false,
 				items: [
-					{ text: "Overview", link: "/introduction/" },
-					{ text: "Getting started", link: "/introduction/getting-started" },
+					{ text: "HTML elements", link: "/sgml/html-elements" },
+					{ text: "Attributes", link: "/sgml/attributes" },
+					{ text: "Text", link: "/sgml/text" },
+					{ text: "Whitespace", link: "/sgml/whitespace" },
+					{ text: "Comments", link: "/sgml/comments" },
+					{ text: "Raw output", link: "/sgml/raw" },
+					{ text: "Doctype", link: "/sgml/doctype" },
+					{ text: "Helpers", link: "/sgml/helpers" },
+					{ text: "SVG", link: "/sgml/svg-elements" },
+					{ text: "Without a component", link: "/sgml/string-builder" },
 				],
 			},
 
@@ -52,27 +78,10 @@ export default defineConfig({
 					{ text: "Rendering", link: "/components/rendering" },
 					{ text: "Yielding", link: "/components/yielding" },
 					{ text: "Kits", link: "/components/kits" },
-					{ text: "Caching", link: "/components/caching" },
-					{ text: "Fragments", link: "/components/fragments" },
-					{ text: "Streaming", link: "/components/streaming" },
+					{ text: "Callbacks", link: "/components/callbacks" },
+					{ text: "Context", link: "/components/context" },
 					{ text: "Snippets", link: "/components/snippets" },
 					{ text: "Testing", link: "/components/testing" },
-				],
-			},
-
-			{
-				text: "HTML & SVG",
-				collapsed: false,
-				items: [
-					{ text: "HTML elements", link: "/sgml/html-elements" },
-					{ text: "SVG elements", link: "/sgml/svg-elements" },
-					{ text: "Attributes", link: "/sgml/attributes" },
-					{ text: "Text", link: "/sgml/text" },
-					{ text: "Whitespace", link: "/sgml/whitespace" },
-					{ text: "Comments", link: "/sgml/comments" },
-					{ text: "Raw output", link: "/sgml/raw" },
-					{ text: "Doctype (HTML only)", link: "/sgml/doctype" },
-					{ text: "Helpers", link: "/sgml/helpers" },
 				],
 			},
 
@@ -80,37 +89,46 @@ export default defineConfig({
 				text: "Rails",
 				collapsed: false,
 				items: [
+					{ text: "Installation & generators", link: "/rails/generators" },
 					{ text: "Adopting Phlex", link: "/rails/adopting-phlex" },
-					{ text: "Helpers", link: "/rails/helpers" },
 					{ text: "Views", link: "/rails/views" },
+					{ text: "Helpers", link: "/rails/helpers" },
 					{ text: "Layouts", link: "/rails/layouts" },
+					{ text: "Forms", link: "/rails/forms" },
 				],
 			},
 
 			{
-				text: "Miscellaneous",
+				text: "Beyond the basics",
 				collapsed: false,
 				items: [
-					{ text: "Literal Properties", link: "/miscellaneous/literal-properties" },
-					{ text: "Under the hood", link: "/miscellaneous/under-the-hood" },
-					{ text: "Upgrading to v2", link: "/miscellaneous/v2-upgrade" },
-					{ text: "Structural Safety", link: "/miscellaneous/structural-safety" },
+					{ text: "Fragments", link: "/components/fragments" },
+					{ text: "Caching", link: "/components/caching" },
+					{ text: "Streaming", link: "/components/streaming" },
+					{ text: "CSV", link: "/csv/" },
 				],
 			},
 
 			{
-				text: "Technical Design",
-				collapsed: true,
+				text: "Reference",
+				collapsed: false,
 				items: [
-					{ text: "Attribute Caching", link: "/design/attribute-caching" },
-					// { text: "Performance" },
-					// { text: "Kits" },
-					// { text: "Rails Integration" },
+					{ text: "Errors", link: "/miscellaneous/errors" },
+					{ text: "Structural safety", link: "/miscellaneous/structural-safety" },
+					{ text: "Literal properties", link: "/miscellaneous/literal-properties" },
+					{ text: "Under the hood", link: "/miscellaneous/under-the-hood" },
+					{ text: "Attribute caching", link: "/design/attribute-caching" },
+					{ text: "Upgrading to v2", link: "/miscellaneous/v2-upgrade" },
 				],
 			},
+
 			{
-				text: "AI Prompt",
-				link: "/ai",
+				text: "Project",
+				collapsed: false,
+				items: [
+					{ text: "Community", link: "/project/community" },
+					{ text: "GitHub", link: "https://github.com/yippee-fun/phlex" },
+				],
 			},
 		],
 
@@ -119,7 +137,7 @@ export default defineConfig({
 		footer: {
 			message: "Released under the MIT License.",
 			copyright:
-				'Made by <a href="https://joel.drapper.me">Joel Drapper</a>, <a href="https://github.com/willcosgrove">Will Cosgrove</a> and dozens of other <a href="https://github.com/yippee-fun/phlex/graphs/contributors">contributors</a>.',
+				'Made by <a href="https://joel.drapper.me">Joel Drapper</a>, <a href="https://github.com/willcosgrove">Will Cosgrove</a> and dozens of other <a href="https://github.com/yippee-fun/phlex/graphs/contributors">contributors</a>.',
 		},
 	},
 });
