@@ -122,10 +122,10 @@ Another approach is to define two additional components `NavItem` and `NavDivide
 
 ```ruby
 render Nav do
-  render NavItem.new("/") { strong { "Home" } }
-  render NavItem.new("/about") { "About" }
+  render(NavItem.new("/")) { strong { "Home" } }
+  render(NavItem.new("/about")) { "About" }
   render NavDivider
-  render NavItem.new("/contact") { "Contact" }
+  render(NavItem.new("/contact")) { "Contact" }
 end
 ```
 
