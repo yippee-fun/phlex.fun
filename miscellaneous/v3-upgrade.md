@@ -244,7 +244,8 @@ When a component can’t be compiled, Phlex calls a failure handler and the comp
   ```
 
 - **A file edited since it was loaded.** The compiler refuses rather than compiling stale source. Reloading in development takes care of this.
-- **Methods from mixins** aren’t compiled yet. That only costs speed.
+
+Methods from mixins aren’t compiled yet either, but that isn’t a failure: they run as before and only miss the speed-up.
 
 ### Reporting compile failures
 
@@ -272,7 +273,58 @@ In 3.0.0.beta1, calling `require` on a file that Zeitwerk manages, after boot, c
 
 Your tests are the first check, but tests that check a component rendered something won’t notice it rendering less. Two more checks are worth doing.
 
-**Compare rendered HTML before and after.** Render the same components with the same data on v2 and v3, for example by saving the output of each component test or preview to a file on both versions, and diff the files. Normalise anything that changes between runs, such as IDs, timestamps and CSRF tokens. These differences are expected and correct:
+**Compare rendered HTML before and after.** Render the same components with the same data on v2 and v3 and diff the output. Your test suite already does the rendering. Check out the old version in a second worktree, load a small file into both test runs, and run the same specs with the same seed:
+
+```ruby
+# capture.rb: bin/rspec --require rails_helper --require ./capture.rb --seed 1234
+require "json"
+require "zlib"
+
+module Capture
+  OUT = File.open(ENV.fetch("CAPTURE_OUT"), "w")
+
+  class << self
+    attr_accessor :key, :seq, :rng
+  end
+
+  # Records each top-level render. Nested components render through
+  # `internal_call` in 2.4 and 3.0, so they're part of their parent's output.
+  module Render
+    def call(*, **, &)
+      html = super
+      Capture::OUT.puts({key: Capture.key, seq: Capture.seq += 1, html: html.to_s}.to_json) if Capture.key
+      html
+    end
+  end
+
+  # The same generated IDs, nonces and tokens on both runs.
+  module Random
+    def gen_random(n) = Capture.rng ? Capture.rng.bytes(n) : super
+    def bytes(n) = gen_random(n)
+    def random_bytes(n = nil) = gen_random(n || 16)
+  end
+end
+
+RSpec.configure do |config|
+  config.before(:suite) do
+    Phlex::SGML.prepend(Capture::Render)
+    SecureRandom.singleton_class.prepend(Capture::Random)
+  end
+
+  config.around do |example|
+    Capture.key = example.id
+    Capture.seq = 0
+    Capture.rng = ::Random.new(Zlib.crc32(example.id))
+    example.run
+  ensure
+    Capture.key = nil
+  end
+end
+```
+
+Pair the two files' lines by `key` and `seq` and compare the HTML. Hook `Phlex::SGML#call`, not `render_in`: `phlex-rails` defines `render_in` in a module that comes before `Phlex::SGML` in the method lookup and doesn’t call `super`, so a hook there never runs. Leave out spec files that differ between the two branches, because extra examples shift database IDs. Anything time-based, such as the timestamp half of a ULID, still differs between runs, so normalise it before comparing. To check what users see as well, screenshot both versions of each render in a headless browser with the same stylesheet, JavaScript off and animations disabled, and compare the pixels.
+
+These differences are expected and correct:
 
 - `<` and `>` escaped in attribute values (from 2.4.2).
 - No leading space for `class: [nil, "link"]` (from 2.4.3).

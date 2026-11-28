@@ -152,7 +152,7 @@ Second, you can pass a block of content to a component. The block is output wher
 Inside the block, `self` is still the outer component — `Welcome` in this example. That’s why `@name` is available in the block even though it was never passed to `Card`.
 
 ::: tip
-If you pass a block to `new`, your `initialize` method doesn’t receive it. Phlex keeps hold of it and uses it as the content block when the component is rendered. This means `render Card.new { ... }` and `render(Card.new) { ... }` behave the same way.
+A block passed to `new` goes to `initialize`, not to the component’s content, so `render Card.new { ... }` renders `Card` without its content. Braces bind to the nearest call, so wrap the component in parentheses, `render(Card.new) { ... }`, or use `do ... end`, which binds to `render`. See [Rendering a block](#rendering-a-block) below for `with_content`.
 :::
 
 If your components live in a [Kit](/components/kits), you can also render them by calling a method with the component’s name, such as `Card { ... }`.
