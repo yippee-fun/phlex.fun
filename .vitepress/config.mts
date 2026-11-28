@@ -118,6 +118,7 @@ export default defineConfig({
 					{ text: "Literal properties", link: "/miscellaneous/literal-properties" },
 					{ text: "Under the hood", link: "/miscellaneous/under-the-hood" },
 					{ text: "Attribute caching", link: "/design/attribute-caching" },
+					{ text: "Upgrading to v3", link: "/miscellaneous/v3-upgrade" },
 					{ text: "Upgrading to v2", link: "/miscellaneous/v2-upgrade" },
 				],
 			},
