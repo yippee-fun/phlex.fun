@@ -63,3 +63,13 @@ htmx
 importmap
 javascripts
 organise
+Honeybadger
+constantize
+klass
+normalise
+summarise
+uncompiled
+fxxw
+jjpx
+pqwp
+qcfc
